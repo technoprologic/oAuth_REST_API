@@ -4,11 +4,11 @@ REST service that provides a RESTful endpoints protected by OAuth 2. Allows user
 
 ## Used Spring Projects 
 
-* http://projects.spring.io/spring-boot/[Spring Boot]
-* http://docs.spring.io/spring/docs/current/spring-framework-reference/html/mvc.html[Spring MVC]
-* http://projects.spring.io/spring-security/[Spring Security]
-* http://projects.spring.io/spring-security-oauth/[Spring Security OAuth]
-* http://projects.spring.io/spring-data-jpa/[Spring Data JPA]
+* [Spring Boot]
+* [Spring MVC]
+* [Spring Security]
+* [Spring Security OAuth]
+* [Spring Data JPA]
 
 
 ## Installation
