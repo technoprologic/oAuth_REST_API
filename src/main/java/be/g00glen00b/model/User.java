@@ -16,6 +16,7 @@ public class User extends BaseEntity{
     @Column(unique = true, nullable = false)
     private String login;
 
+    @JsonIgnore
     @Column
     private String password;
 
@@ -72,9 +73,9 @@ public class User extends BaseEntity{
     public String toString() {
         return "User{" +
                 "login='" + login + '\'' +
-                ", password='" + password + '\'' +
                 ", roles=" + roles +
-                ", albumsSize=" + albums.size() +
+                ", albumsSize=" + (null==albums? " Empty" : albums.size()) +
+                System.lineSeparator() +
                 '}';
     }
 }

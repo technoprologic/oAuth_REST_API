@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.NestedServletException;
 
 import java.util.List;
 
@@ -29,7 +30,7 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     public Album save(Album album) {
-        return albumRepository.save(album);
+        return albumRepository.saveAndFlush(album);
     }
 
     @Override
@@ -38,8 +39,13 @@ public class AlbumServiceImpl implements AlbumService {
         try{
         albumToDelete.getUser().getAlbums().remove(albumToDelete);
         albumRepository.delete(albumToDelete);
-        }catch (Exception e){
-            LOGGER.debug("BABOL {}", e.toString());
+        } catch (Throwable ex) {
+            Throwable cause = ex.getCause();
+            try {
+                throw new NestedServletException("Request processing failed", cause); //line 583
+            } catch (NestedServletException e) {
+                e.printStackTrace();
+            }
         }
     }
 

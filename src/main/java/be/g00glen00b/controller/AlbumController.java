@@ -1,159 +1,140 @@
 package be.g00glen00b.controller;
 
+import be.g00glen00b.dto.AlbumDto;
 import be.g00glen00b.model.Album;
 import be.g00glen00b.model.User;
+import be.g00glen00b.service.AlbumService;
+import be.g00glen00b.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/albums")
-public class AlbumController extends AbstractApiController {
+public class AlbumController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AlbumController.class);
 
-    /**
+    @Autowired
+    protected UserService userService;
+    @Autowired
+    protected AlbumService albumService;
+
+    /** Endpoint* - Listing all user albums.
+     *
      * curl -k https://localhost:8443/api/albums -H "Authorization: Bearer {token}"
      *
-     * @return
+     * @param request
+     * @return ResponseEntity<?>, HttpStatus)
      */
     @RequestMapping(method = RequestMethod.GET)
-    public Set<Album> getUserAlbums() {
-        User domainUser = getUser();
+    public ResponseEntity<?> getUserAlbums(HttpServletRequest request) {
+        User domainUser = userService.findByLogin(request.getRemoteUser());
         LOGGER.debug("########## - USER IS GETTING HIS ALBUMS as: {}", domainUser.toString());
-        return domainUser.getAlbums();
+        return new ResponseEntity<>(domainUser.getAlbums(), HttpStatus.OK);
     }
 
     /**
      * Endpoint for creating new album.
-     * <p/>
-     * curl -k https://localhost:8443/api/albums/create -X POST -H "Authorization: Bearer {token}" -H "Content-Type: application/json" -d "{\"name\": \"New Album\"}"
+     *
+     * curl -k https://localhost:8443/api/albums -X POST -H "Authorization: Bearer {token}" -H "Content-Type: application/json" -d "{\"title\": \"New Album\", \"description\": \"Album description\"}"
      *
      * @param album
      * @return ResponseEntity<Album, HttpStatus>
      */
-    @RequestMapping(value = "/create", method = RequestMethod.POST)
-    public ResponseEntity<Album> createAlbum(@RequestBody @Valid Album album) {
-        User domainUser = getUser();
+    @RequestMapping( method = RequestMethod.POST)
+    public ResponseEntity<?> createAlbum(@RequestBody @Valid AlbumDto album, HttpServletRequest request) {
+        User domainUser = userService.findByLogin(request.getRemoteUser());
         Album newAlbum = new Album(album.getTitle(), album.getDescription());
         LOGGER.debug("########## - USER {} IS CREATING NEW ALBUM : {}", domainUser.getLogin(), newAlbum.getTitle());
         newAlbum.setUser(domainUser);
         newAlbum = albumService.save(newAlbum);
         LOGGER.debug("ALBUM: {}", newAlbum.toString());
-        return new ResponseEntity<Album>(newAlbum, HttpStatus.OK);
+        return new ResponseEntity<>(newAlbum, HttpStatus.OK);
     }
 
     /**
-     * Deleting User album.
-     * <p/>
-     * curl -k https://localhost:8443/api/albums/delete/{albumId} -X DELETE -H "Authorization: Bearer {token}"
+     * Endpoint* - Deleting User album.
+     *
+     * curl -k https://localhost:8443/api/albums/{albumId}/delete -X DELETE -H "Authorization: Bearer {token}"
      *
      * @param albumId
+     * @param request
      * @return ResponseEntity<String, HttpStatus>
      */
-    @RequestMapping(value = "/delete/{id}", method = RequestMethod.DELETE)
-    public ResponseEntity<String> deleteAlbum(@PathVariable("id") Long albumId) {
-        User domainUser = getUser();
+    @RequestMapping(value = "/{id}/delete", method = RequestMethod.DELETE)
+    public ResponseEntity<?> deleteAlbum(@PathVariable("id") Long albumId, HttpServletRequest request) {
+        User domainUser = userService.findByLogin(request.getRemoteUser());
         LOGGER.debug("########## - USER {} IS DELETING ALBUM WITH ID : {}", domainUser.getLogin(), albumId);
         Optional<Album> albumToDeleteOpt = domainUser.getAlbums().stream().filter(a -> a.getId().equals(albumId)).findFirst();
         if (!albumToDeleteOpt.isPresent()) {
             LOGGER.debug("########## - USER CAN'T DELETE ALBUM WITH ID : {}", albumId);
-            return new ResponseEntity<String>("User is unauthorized to delete album with id: " + albumId.toString() + ".", HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>("User is unauthorized to delete album with id: " + albumId.toString() + ".", HttpStatus.UNAUTHORIZED);
         }
         Album albumToDelete = albumToDeleteOpt.get();
         albumService.delete(albumToDelete);
         LOGGER.debug("########## - USER DELETED ALBUM WITH ID : {}", albumId);
-        return new ResponseEntity<String>("User succesfully delete album with id: " + albumId, HttpStatus.OK);
+        return new ResponseEntity<>("User succesfully delete album with id: " + albumId, HttpStatus.OK);
     }
 
-    /**
-     * Endpoint - user can delete all his albums.
-     * <p/>
-     * <p/>
-     * curl -k https://localhost:8443/api/albums/delete -X DELETE -H "Authorization: Bearer {token}"
-     */
-    @RequestMapping(value = "/delete", method = RequestMethod.DELETE)
-    public ResponseEntity<String> deleteAllAlbum() {
-        try {
-            User domainUser = getUser();
-            Set<Album> albums = domainUser.getAlbums();
-            albums.stream().forEach(a -> albumService.delete(a));
-            LOGGER.debug("########## - USER {} DELETED ALL HIS ALBUMS", domainUser.getLogin());
-            return new ResponseEntity<String>("User deleted all his albums", HttpStatus.OK);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return new ResponseEntity<String>("User couldn't deleted all his albums", HttpStatus.OK);
-    }
-
-    /**
-     * curl https://localhost:8443/api/albums/update -X PUT -H "Content-Type: application/json" -d "{\"id\": \"0\", \"name\": \"New Album Name\"}"
+    /** Endpoint* - updates album.
      *
+     * curl -k https://localhost:8443/api/albums/{albumId} -X PUT -H "Content-Type: application/json" -d "{\"title\": \"New Album Name\", \"description\": \"New description\"}" -H "Authorization: Bearer {token}"
+     *
+     * @param albumId
      * @param album
-     * @return
+     * @param request
+     * @return ResponseEntity<?>(?, HttpStatus)
      */
-    @RequestMapping(value = "/update", method = RequestMethod.PUT, consumes = "application/json")
-    public ResponseEntity<Album> updateAlbum(@RequestBody @Valid final Album album) {
-
-        if (null == album.getId()) {
-            album.setId(null);
-            return new ResponseEntity<Album>(album, HttpStatus.BAD_REQUEST);
+    @RequestMapping(value = "/{albumId}", method = RequestMethod.PUT, consumes = "application/json")
+    public ResponseEntity<?> updateAlbum(@PathVariable("albumId") final Long albumId, @RequestBody @Valid final AlbumDto album, HttpServletRequest request) {
+        if((null == album.getDescription() || album.getDescription().isEmpty()) && (null == album.getTitle() || album.getTitle().isEmpty())){
+            return new ResponseEntity<>("Could not update album with given values", HttpStatus.BAD_REQUEST);
         }
-        User domainUser = getUser();
+        User domainUser = userService.findByLogin(request.getRemoteUser());
         Optional<Album> userAlbumOpt = domainUser.getAlbums().stream()
-                .filter(a -> a.getId().equals(album.getId()))
+                .filter(a -> a.getId().equals(albumId))
                 .findFirst();
         if (!userAlbumOpt.isPresent()) {
-            album.setId(null);
-            return new ResponseEntity<Album>(album, HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>("User can't update album with given id", HttpStatus.UNAUTHORIZED);
         }
         Album albumToUpdate = userAlbumOpt.get();
-        albumToUpdate.setTitle(album.getTitle());
-        albumToUpdate.setDescription(album.getDescription());
-        albumService.save(albumToUpdate);
-        return new ResponseEntity<Album>(albumToUpdate, HttpStatus.OK);
+        if(null != album.getDescription() && !album.getDescription().isEmpty()) {
+            albumToUpdate.setTitle(album.getTitle());
+        }
+        if(null != album.getDescription() && !album.getDescription().isEmpty()) {
+            albumToUpdate.setDescription(album.getDescription());
+        }
+        albumToUpdate = albumService.save(albumToUpdate);
+        return new ResponseEntity<>(albumToUpdate, HttpStatus.OK);
     }
-
 
     /**
      * Endpoint - Return photo entries of given album albumId.
-     * <p/>
-     * curl https://localhost:8443/api/albums/{albumId}/photos
+     *
+     * curl -k https://localhost:8443/api/albums/{albumId}/photos -H "Authorization: Bearer {token}"
      *
      * @param id
+     * @param request
      * @return
      */
 
-//    @RequestMapping(value = "/{albumId}/photos", method = RequestMethod.GET)
-//    public ResponseEntity<List<Photo>> getPhotosByAlbumId(@PathVariable("albumId") Long id) {
-//        User domainUser = userService.findByLogin(getUserLogin());
-//        Optional<Album> albumOpt = domainUser.getUserAlbums().stream().filter(a -> a.getId().equals(id)).findFirst();
-//        if (!albumOpt.isPresent()) {
-//            return new ResponseEntity<List<Photo>>(new ArrayList<>(), HttpStatus.UNAUTHORIZED);
-//        }
-//        Album album = albumOpt.get();
-//        return new ResponseEntity<List<Photo>>(album.getPhotoEntries(), HttpStatus.OK);
-//    }
-
-
-    /**
-     * Endpoint - Listing all albums from database.
-     * <p/>
-     * curl https://localhost:8443/api/albums/all
-     *
-     * @return ResponseEntity<List<Album>, HttpStatus>
-     */
-    @RequestMapping(value = "/all", method = RequestMethod.GET)
-    public ResponseEntity<List<Album>> getAll() {
-        List<Album> albums = albumService.findAll();
-        return new ResponseEntity<List<Album>>(albums, HttpStatus.OK);
+    @RequestMapping(value = "/{albumId}/photos", method = RequestMethod.GET)
+    public ResponseEntity<?> getPhotosByAlbumId(@PathVariable("albumId") Long id, HttpServletRequest request) {
+        User domainUser = userService.findByLogin(request.getRemoteUser());
+        Optional<Album> albumOpt = domainUser.getAlbums().stream().filter(a -> a.getId().equals(id)).findFirst();
+        if (!albumOpt.isPresent()) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+        Album album = albumOpt.get();
+        return new ResponseEntity<>(album.getPhotos(), HttpStatus.OK);
     }
 
 }
