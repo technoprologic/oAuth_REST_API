@@ -35,7 +35,11 @@ public class UserServiceImpl implements UserService {
         LOGGER.debug("Creating {}", user);
         User existing = repository.findByLogin(user.getLogin());
         try{
-            repository.saveAndFlush(existing);
+            if(null == existing) {
+                repository.saveAndFlush(existing);
+            }else{
+                repository.saveAndFlush(user);
+            }
         }catch (JpaSystemException e){
             LOGGER.debug("Could not save entity");
             e.printStackTrace();

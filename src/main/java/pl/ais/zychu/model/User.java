@@ -40,6 +40,14 @@ public class User extends BaseEntity{
         this.albums = user.getAlbums();
     }
 
+    public User(String login, String password, Set<Role> roles){
+        super();
+        this.login = login;
+        this.password  = password;
+        this.roles = roles;
+        this.albums= new HashSet<>();
+    }
+
     public String getLogin() {
         return login;
     }
